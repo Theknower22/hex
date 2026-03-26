@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-black: #050505;
+  --color-cyber-dark: #0a0a0b;
+  --color-cyber-deep-blue: #001a4d;
+  --color-cyber-blue: #0047ff;
+  --color-cyber-neon: #39ff14;
+  --color-cyber-border: #1a1a1b;
+  --color-cyber-surface: #0f0f12;
+  --color-cyber-alert: #ff003c;
+  --color-cyber-warning: #ffcc00;
+  
+  --font-sans: "Inter", "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  
+  --shadow-neon-glow: 0 0 10px rgba(57, 255, 20, 0.4);
+  --shadow-blue-glow: 0 0 15px rgba(0, 71, 255, 0.3);
+}
+
+@layer base {
+  body {
+    @apply bg-cyber-black text-white font-sans antialiased;
+  }
+}
+
+@layer components {
+  .cyber-panel {
+    @apply bg-cyber-surface border border-cyber-border rounded-xl p-5 shadow-lg backdrop-blur-md;
+    background-image: linear-gradient(to bottom right, rgba(15, 15, 18, 0.8), rgba(5, 5, 5, 0.9));
+  }
+
+  .neon-text {
+    @apply text-cyber-neon drop-shadow-[0_0_8px_rgba(57,255,20,0.6)];
+  }
+
+  .cyber-button {
+    @apply bg-cyber-blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-blue-glow active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .cyber-input {
+    @apply bg-cyber-black border border-cyber-border rounded-lg px-4 py-2 focus:border-cyber-blue focus:outline-none transition-colors text-sm;
+  }
+
+  .glow-border {
+    @apply border-cyber-neon shadow-neon-glow transition-all duration-500;
+  }
+
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+}
+
+/* Animations */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s infinite;
+}
+
+@keyframes slide-right {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
+}
+
+.animate-slide-right {
+  animation: slide-right 2s linear infinite;
+}
+
