@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from services.recon_service import ReconService
-from authentication.auth import get_current_user
+from authentication.auth import get_current_user, check_role
 
-router = APIRouter(prefix="/recon", tags=["recon"])
+router = APIRouter(prefix="/recon", tags=["recon"], dependencies=[Depends(check_role(["admin", "security_analyst", "analyst"]))])
 
 @router.get("/full/{target}")
 async def run_full_recon(target: str, current_user: dict = Depends(get_current_user)):

@@ -20,14 +20,17 @@ migrations = [
     ("cve_id", "TEXT DEFAULT 'N/A'"),
     ("owasp_category", "TEXT DEFAULT 'A00:2021'"),
     ("mitre_id", "TEXT DEFAULT 'T0000'"),
+    ("port", "INTEGER"),
+    ("reference_url", "TEXT"),
+    ("exploit_db_id", "TEXT"),
 ]
 
 for col_name, col_def in migrations:
     if col_name not in existing:
         c.execute(f"ALTER TABLE findings ADD COLUMN {col_name} {col_def}")
-        print(f"✅ Added column: {col_name}")
+        print(f"[FIXED] Added column: {col_name}")
     else:
-        print(f"⏭️  Column already exists: {col_name}")
+        print(f"[SKIP] Column already exists: {col_name}")
 
 conn.commit()
 
@@ -35,4 +38,4 @@ conn.commit()
 c.execute("PRAGMA table_info(findings)")
 print("\nUpdated findings columns:", [row[1] for row in c.fetchall()])
 conn.close()
-print("\n✅ Migration complete!")
+print("\nMigration complete!")

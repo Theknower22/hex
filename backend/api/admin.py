@@ -19,12 +19,14 @@ async def get_system_stats(current_user: str = Depends(get_current_user), db: Se
     risk_score = RiskEngine.calculate_overall_risk(finding_dicts)
 
     active_targets = db.query(Scan.target).distinct().count()
+    open_ports_count = db.query(Finding.port).distinct().count()
 
     return {
         "active_targets": active_targets,
         "total_scans": scan_count,
         "critical_findings": critical_count,
         "risk_score": risk_score,
+        "open_ports_count": open_ports_count,
         "system_status": "Operational",
         "health": {
             "cpu": "24.8%",

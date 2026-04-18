@@ -1,194 +1,205 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle, Filter, Loader2, Trash2, Printer, Code } from 'lucide-react';
-import { scanService, reportsService } from '../services/apiClient';
+import { FileText, Download, Filter, Loader2, CheckCircle, DownloadCloud, Trash2, Shield } from 'lucide-react';
+import { vulnService, reportsService } from '../services/apiClient';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import GlobalHeader from '../components/GlobalHeader';
 
-const ReportGenerator = () => {
+const ReportGeneratorView = ({ isMonochrome, onToggleMonochrome, headerTitle, headerSubtitle }) => {
+  const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchReports = async () => {
-    try {
-      const response = await reportsService.listReports();
-      const uniqueScans = response.data.reduce((acc, curr) => {
-        if (!acc[curr.scan_id]) {
-          acc[curr.scan_id] = {
-            id: curr.scan_id,
-            target: curr.target,
-            date: new Date(curr.timestamp).toLocaleDateString(),
-            findings: 0,
-            status: "Ready"
-          };
-        }
-        acc[curr.scan_id].findings += 1;
-        return acc;
-      }, {});
-      setReports(Object.values(uniqueScans));
-    } catch (err) {
-      console.error("Failed to fetch reports", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchReports(); }, []);
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this report?")) {
+  useEffect(() => {
+    const fetchReports = async () => {
       try {
-        await scanService.deleteScan(id);
-        setReports(reports.filter(r => r.id !== id));
+        const res = await vulnService.getAllFindings();
+        const grouped = res.data.reduce((acc, current) => {
+           if(!acc[current.scan_id]) {
+             acc[current.scan_id] = current;
+             acc[current.scan_id].findingCount = 1;
+           } else {
+             acc[current.scan_id].findingCount += 1;
+           }
+           return acc;
+        }, {});
+        setReports(Object.values(grouped));
       } catch (err) {
-        console.error("Delete failed", err);
+        console.error("Report fetch error", err);
+      } finally {
+        setLoading(false);
       }
+    };
+    fetchReports();
+  }, []);
+
+  const handleDownload = (scanId, format) => {
+    navigate(`/reports/${scanId}`);
+  };
+
+  const handleDelete = async (scanId) => {
+    if(!window.confirm("Are you sure you want to delete this report?")) return;
+    try {
+       await reportsService.delete(scanId);
+       setReports(prev => prev.filter(r => r.scan_id !== scanId));
+     } catch (err) {
+        console.error("Delete error", err);
+        alert("Failed to delete report.");
+     }
+  };
+
+  const handleWipeAll = async () => {
+    if (!window.confirm("WARNING: This will permanently wipe ALL scan results and findings from the database. This action cannot be undone. Proceed?")) return;
+    try {
+      await reportsService.purgeAll();
+      setReports([]);
+    } catch (err) {
+      console.error("Purge error", err);
+      alert("Failed to purge database.");
     }
   };
 
-  // Open full HTML report in a new tab â€” authenticated download via Blob
-  const handlePrintPDF = async (id) => {
-    const url = reportsService.download(id, 'html');
-    const token = localStorage.getItem('access_token');
-    try {
-      const res = await fetch(url, { 
-        headers: { Authorization: `Bearer ${token}` } 
-      });
-      if (res.status === 401) {
-          alert("Session expired. Please log in again.");
-          return;
-      }
-      const htmlContent = await res.text();
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-    } catch (err) {
-      console.error("Report load failed", err);
-    }
-  };
-
-  // Download raw JSON report
-  const handleDownloadJSON = async (id) => {
-    const url = reportsService.download(id, 'json');
-    const token = localStorage.getItem('access_token');
-    try {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) {
-          alert("Session expired. Please log in again.");
-          return;
-      }
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `REP-${id}.json`;
-      a.click();
-    } catch (err) {
-      console.error("JSON download failed", err);
-    }
-  };
+  const displayReports = reports;
+  const filteredReports = displayReports.filter(r => 
+    r.target?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.scan_id?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="text-cyber-blue animate-spin" size={40} />
-      </div>
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-4 opacity-50">
+           <Loader2 size={40} className="animate-spin text-cyber-neon" />
+           <p className="text-[10px] font-black uppercase tracking-[0.3em] font-mono">Synthesizing Audit Data...</p>
+        </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
-      <header className="mb-10 flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold neon-text font-mono tracking-tighter">Reporting Engine</h2>
-          <p className="text-gray-400 mt-1">Generate, export, and print professional penetration testing reports.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="bg-cyber-surface border border-cyber-border px-4 py-2 rounded text-sm hover:border-gray-500 transition-all flex items-center gap-2">
-            <Filter size={16} /> Filters
-          </button>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <GlobalHeader 
+        title={headerTitle} 
+        subtitle={headerSubtitle} 
+        isMonochrome={isMonochrome} 
+        onToggleMonochrome={onToggleMonochrome} 
+      />
+
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
+        <div className="flex flex-col md:flex-row gap-4">
+           <button 
+             onClick={handleWipeAll}
+             className="px-4 py-2 bg-cyber-alert/10 border border-cyber-alert/30 rounded-lg text-xs font-black text-cyber-alert hover:bg-cyber-alert/20 transition-all uppercase tracking-widest"
+           >
+              Purge Database
+           </button>
+           <button className="flex items-center gap-2 px-4 py-2 bg-transparent border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:border-white/30 transition-colors">
+              <Filter size={16} /> Filters
+           </button>
         </div>
       </header>
 
-      {reports.length === 0 ? (
-        <div className="cyber-panel py-20 text-center">
-          <FileText className="mx-auto text-gray-600 mb-4" size={48} />
-          <h3 className="text-xl font-bold text-gray-400">No Reports Available</h3>
-          <p className="text-gray-500 mt-2">Go to the dashboard or Network Scan to initiate a security audit first.</p>
+      {/* Table Panel */}
+      {filteredReports.length > 0 ? (
+        <div className="bg-cyber-surface/50 border border-white/5 rounded-xl overflow-hidden shadow-2xl backdrop-blur-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-white/5">
+                <tr>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Report ID</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Target Infrastructure</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Scan Date</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Findings</th>
+                  <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filteredReports.map((report) => (
+                  <motion.tr 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={report.scan_id} 
+                    className="hover:bg-white/5 transition-colors group"
+                  >
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <FileText size={18} className="text-cyber-blue" />
+                        <span className="text-sm font-bold text-gray-200 tracking-wide">{report.scan_id}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm font-bold text-white tracking-wide">{report.target}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm text-gray-500 font-mono">{new Date(report.timestamp).toLocaleDateString()}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-black tracking-widest text-gray-300 uppercase">
+                        {report.findingCount} DETECTED
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                         <a 
+                           href={`http://127.0.0.1:8000/api/reports/download/${report.scan_id}?format=html`}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="p-2 bg-cyber-neon/10 text-cyber-neon rounded-lg hover:bg-cyber-neon/20 transition-colors"
+                           title="Executive Audit Report"
+                         >
+                           <FileText size={16} />
+                         </a>
+                         <button 
+                           onClick={() => navigate(`/reports/${report.scan_id}`)} 
+                           className="p-2 bg-cyber-blue/10 text-cyber-blue rounded-lg hover:bg-cyber-blue/20 transition-colors"
+                           title="View Detailed Analysis"
+                         >
+                           <Shield size={16} />
+                         </button>
+                         <button 
+                           onClick={() => handleDelete(report.scan_id)}
+                           className="p-2 bg-cyber-alert/10 text-cyber-alert rounded-lg hover:bg-cyber-alert/20 transition-colors"
+                           title="Delete Audit Record"
+                         >
+                           <Trash2 size={16} />
+                         </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
-        <div className="cyber-panel overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-cyber-border text-gray-400 text-sm">
-                <th className="pb-4 font-medium px-4">Report ID</th>
-                <th className="pb-4 font-medium">Target Infrastructure</th>
-                <th className="pb-4 font-medium">Scan Date</th>
-                <th className="pb-4 font-medium">Findings</th>
-                <th className="pb-4 font-medium text-right px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-cyber-border">
-              {reports.map((rep) => (
-                <tr key={rep.id} className="group hover:bg-cyber-surface/50 transition-colors">
-                  <td className="py-5 px-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="text-cyber-blue" size={18} />
-                      <span className="font-mono text-sm tracking-tight">REP-{rep.id}</span>
-                    </div>
-                  </td>
-                  <td className="py-5 font-medium">{rep.target}</td>
-                  <td className="py-5 text-gray-500 text-sm">{rep.date}</td>
-                  <td className="py-5 text-sm">
-                    <span className="px-2 py-0.5 rounded bg-cyber-surface border border-cyber-border text-[10px] font-bold">
-                      {rep.findings} DETECTED
-                    </span>
-                  </td>
-                  <td className="py-5 px-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handlePrintPDF(rep.id)}
-                        className="p-2 hover:bg-cyber-blue/10 text-cyber-blue rounded transition-colors"
-                        title="Open Report (Print / Save as PDF)"
-                      >
-                        <Printer size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDownloadJSON(rep.id)}
-                        className="p-2 hover:bg-cyber-neon/10 text-cyber-neon rounded transition-colors"
-                        title="Download Raw JSON"
-                      >
-                        <Code size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rep.id)}
-                        className="p-2 hover:bg-red-500/10 text-red-500 rounded transition-colors"
-                        title="Delete Report"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col items-center justify-center p-20 border border-dashed border-white/5 rounded-2xl bg-black/20">
+           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
+              <Shield size={32} className="text-gray-700" />
+           </div>
+           <h3 className="text-lg font-bold text-gray-400 mb-2">Inventory Empty</h3>
+           <p className="text-xs text-gray-600 text-center max-w-[300px] leading-relaxed">
+              No audit intelligence recorded yet. Perform an <span className="text-cyber-blue">Infrastructure Scan</span> or <span className="text-cyber-neon">Reconnaissance</span> to generate findings.
+           </p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-        <div className="cyber-panel border-dashed border-2 border-cyber-border flex flex-col items-center justify-center py-12 group hover:border-cyber-blue transition-all cursor-pointer">
-           <Download className="text-gray-600 group-hover:text-cyber-blue mb-4 transition-colors" size={40} />
-           <h4 className="font-bold text-gray-400 group-hover:text-white transition-colors">Export All Data (JSON)</h4>
-           <p className="text-xs text-gray-600 mt-2 text-center max-w-[200px]">Full raw data export for external SIEM integration.</p>
-        </div>
-        <div className="cyber-panel border-dashed border-2 border-cyber-border flex flex-col items-center justify-center py-12 group hover:border-cyber-neon transition-all cursor-pointer">
-           <CheckCircle className="text-gray-600 group-hover:text-cyber-neon mb-4 transition-colors" size={40} />
-           <h4 className="font-bold text-gray-400 group-hover:text-white transition-colors">Compliance Packages</h4>
-           <p className="text-xs text-gray-600 mt-2 text-center max-w-[200px]">Generate NIST and OWASP compliance reports.</p>
-        </div>
+      {/* Bottom Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+         <div className="flex flex-col items-center justify-center p-12 bg-cyber-surface/30 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group">
+            <DownloadCloud size={32} className="text-gray-500 group-hover:text-cyber-blue transition-colors mb-4" />
+            <h3 className="text-lg font-bold text-gray-300 mb-2">Export All Data (JSON)</h3>
+            <p className="text-xs text-gray-500 text-center max-w-[250px]">Full raw data export for external SIEM integration.</p>
+         </div>
+         
+         <div className="flex flex-col items-center justify-center p-12 bg-cyber-surface/30 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group">
+            <CheckCircle size={32} className="text-gray-500 group-hover:text-cyber-neon transition-colors mb-4" />
+            <h3 className="text-lg font-bold text-gray-300 mb-2">Compliance Packages</h3>
+            <p className="text-xs text-gray-500 text-center max-w-[250px]">Generate NIST and OWASP compliance reports.</p>
+         </div>
       </div>
+
     </div>
   );
 };
 
-export default ReportGenerator;
-
+export default ReportGeneratorView;

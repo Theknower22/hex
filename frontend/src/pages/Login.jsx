@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,8 +13,22 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState('checking');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const apiClient = (await import('../services/apiClient')).default;
+        await apiClient.get('health');
+        setBackendStatus('online');
+      } catch (err) {
+        setBackendStatus('offline');
+      }
+    };
+    checkBackend();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -56,7 +70,12 @@ const Login = () => {
             <Shield className="text-cyber-blue" size={48} />
           </div>
           <h1 className="text-4xl font-black tracking-tighter text-white">HEXA<span className="text-cyber-blue">SHIELD</span></h1>
-          <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] mt-2">Threat Intelligence Console</p>
+          <div className="flex items-center gap-2 mt-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${backendStatus === 'online' ? 'bg-cyber-neon shadow-[0_0_5px_#39ff14]' : backendStatus === 'offline' ? 'bg-cyber-alert shadow-[0_0_5px_#ff003c]' : 'bg-gray-600 animate-pulse'}`} />
+            <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">
+              {backendStatus === 'online' ? 'Neural Link Established' : backendStatus === 'offline' ? 'Neural Link Offline' : 'Initializing Link...'}
+            </p>
+          </div>
         </motion.div>
 
         <CyberCard className="!p-8 border-cyber-blue/20">

@@ -16,9 +16,24 @@ default_sqlite_url = f"sqlite:///{os.path.join(db_dir, 'hexa.db')}"
 DATABASE_URL = os.getenv("DATABASE_URL", default_sqlite_url)
 
 # Connect args needed for SQLite, not for Postgres
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+is_sqlite = DATABASE_URL.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# High-performance pooling for PostgreSQL
+engine_args = {
+    "connect_args": connect_args
+}
+
+if not is_sqlite:
+    engine_args.update({
+        "pool_size": 20,          # Increased for high-concurrency audits
+        "max_overflow": 40,       # Allow burst of connections during heavy scanning
+        "pool_timeout": 60,       # Wait longer for connection availability
+        "pool_recycle": 1800,     # Recycle connections every 30 mins to avoid stale handles
+        "pool_pre_ping": True     # Detect dropped connections early
+    })
+
+engine = create_engine(DATABASE_URL, **engine_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():

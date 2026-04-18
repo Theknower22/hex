@@ -4,10 +4,13 @@ Full platform health check - ASCII safe version.
 import requests, sys
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-BASE = "http://localhost:8080"
+BASE = "http://localhost:8000/api"
 
 def get_token():
     r = requests.post(f"{BASE}/token", data={"username": "admin", "password": "admin123"})
+    if r.status_code != 200:
+        print(f"Auth failed: {r.status_code} - {r.text}")
+        sys.exit(1)
     return r.json()["access_token"]
 
 def check(name, method, url, headers, **kwargs):

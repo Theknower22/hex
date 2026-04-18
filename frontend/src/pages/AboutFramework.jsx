@@ -1,6 +1,7 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { BookOpen, Shield, ShieldCheck, Target, Activity, Code, Scale } from 'lucide-react';
+import GlobalHeader from '../components/GlobalHeader';
 
 const FrameworkCard = ({ title, desc, icon: Icon, points }) => (
   <div className="cyber-panel">
@@ -22,13 +23,15 @@ const FrameworkCard = ({ title, desc, icon: Icon, points }) => (
   </div>
 );
 
-const AboutFramework = () => {
+const AboutFramework = ({ isMonochrome, onToggleMonochrome, headerTitle, headerSubtitle }) => {
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
-      <header className="mb-12">
-        <h2 className="text-3xl font-bold neon-text">Methodology & Frameworks</h2>
-        <p className="text-gray-400 mt-1">Foundational cybersecurity standards powering this research project.</p>
-      </header>
+    <div className="space-y-6">
+      <GlobalHeader 
+        title={headerTitle} 
+        subtitle={headerSubtitle} 
+        isMonochrome={isMonochrome} 
+        onToggleMonochrome={onToggleMonochrome} 
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
         <div className="space-y-6">

@@ -1,13 +1,15 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, MapPin } from 'lucide-react';
 
-const MapModal = ({ isOpen, onClose, lat, lon, city, country }) => {
+const MapModal = ({ isOpen, onClose, lat, lon, city, country, title }) => {
   if (!lat || !lon) return null;
 
-  const mapUrl = `https://www.google.com/maps?q=${lat},${lon}&z=10&output=embed`;
-  const externalMapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+  // Use the title/exact address for the query if available, otherwise coordinates.
+  const query = title ? encodeURIComponent(title) : `${lat},${lon}`;
+  const mapUrl = `https://www.google.com/maps?q=${query}&z=15&output=embed`;
+  const externalMapUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
 
   return (
     <AnimatePresence>

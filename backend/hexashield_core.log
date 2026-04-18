@@ -1,0 +1,17 @@
+2026-04-17 19:22:28,633 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:22:28,998 - watchfiles.main - INFO - 6 changes detected
+2026-04-17 19:22:30,111 - watchfiles.main - INFO - 3 changes detected
+2026-04-17 19:22:37,358 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:26:31,855 - watchfiles.main - INFO - 3 changes detected
+2026-04-17 19:26:34,151 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:31:13,950 - watchfiles.main - INFO - 3 changes detected
+2026-04-17 19:31:15,122 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:33:18,680 - watchfiles.main - INFO - 3 changes detected
+2026-04-17 19:33:19,849 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:34:16,614 - watchfiles.main - INFO - 1 change detected
+2026-04-17 19:37:07,720 - watchfiles.main - INFO - 3 changes detected
+2026-04-17 19:37:08,889 - watchfiles.main - INFO - 1 change detected
+2026-04-17 20:02:09,188 - AdvancedScanner - INFO - [STAGE 2] Initiating Deep Interrogation for ports: 25,110,119,143,465,587,993,995
+2026-04-17 20:02:25,916 - root - INFO - [GRAPH-FALLBACK] Simulated Cypher: MERGE (h:Host {ip: '173.236.218.47'}) ...
+2026-04-18 16:04:27,327 - AdvancedScanner - INFO - [STAGE 2] Initiating Deep Interrogation for ports: 25,110,119,143,465,587,993,995
+2026-04-18 16:04:49,148 - root - INFO - [GRAPH-FALLBACK] Simulated Cypher: MERGE (h:Host {ip: 'google.com'}) ...

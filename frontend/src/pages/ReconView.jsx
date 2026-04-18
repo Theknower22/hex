@@ -1,26 +1,38 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { reconService } from '../services/apiClient';
-import { Search, Globe, Fingerprint, Play, Loader2, Target, Wifi, MapPin, Database } from 'lucide-react';
+import { useSecurity } from '../context/SecurityContext';
+import { Search, Globe, Fingerprint, Play, Loader2, Target, Wifi, MapPin, Database, Shield, Zap, Activity, ShieldCheck, Server, AlertCircle, Info } from 'lucide-react';
 import CyberCard from '../components/CyberCard';
+import GlobalHeader from '../components/GlobalHeader';
 import MapModal from '../components/MapModal';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js';
 
-const ReconView = () => {
-  const [target, setTarget] = useState('');
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend);
+
+const ReconView = ({ isMonochrome, onToggleMonochrome, headerTitle, headerSubtitle }) => {
+  const { reconResults, setReconResults, activeTarget, setActiveTarget } = useSecurity();
+  const [target, setTarget] = useState(activeTarget || '');
   const [isScanning, setIsScanning] = useState(false);
-  const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [isMapOpen, setIsMapOpen] = useState(false);
+
+  // No persistence for inputs as per user request
+  useEffect(() => {
+    // sessionStorage.setItem('reconState', JSON.stringify({ target }));
+  }, [target]);
 
   const handleDiscovery = async () => {
     if (!target.trim()) return;
     setIsScanning(true);
     setError(null);
-    setResults(null);
+    setReconResults(null);
     try {
       const res = await reconService.fullRecon(target);
-      setResults(res.data);
+      setReconResults(res.data);
+      setActiveTarget(target);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Recon failed. Check the target and try again.');
     } finally {
@@ -28,28 +40,53 @@ const ReconView = () => {
     }
   };
 
-  const geo = results?.ip_intelligence || {};
-  const dnsRecords = results?.dns_records || [];
-  const headers = results?.headers?.headers || {};
-  const version = results?.headers?.version || "Unknown";
-  const sslInfo = results?.ssl_info || {};
-  const subdomains = results?.subdomains || [];
-  const whoisInfo = results?.whois_info || {};
+  const geo = reconResults?.ip_intelligence || {};
+  const dnsRecords = reconResults?.dns_records || [];
+  const headers = reconResults?.headers?.headers || {};
+  const version = reconResults?.headers?.version || "Unknown";
+  const sslInfo = reconResults?.ssl_info || {};
+  const subdomains = reconResults?.subdomains || [];
+  const whoisInfo = reconResults?.whois_info || {};
+
+  // Prepare DNS Chart Data
+  const dnsCounts = dnsRecords.reduce((acc, record) => {
+    acc[record.type] = (acc[record.type] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const dnsChartData = {
+    labels: Object.keys(dnsCounts),
+    datasets: [
+      {
+        label: 'DNS Record Count',
+        data: Object.values(dnsCounts),
+        backgroundColor: 'rgba(57, 255, 20, 0.6)',
+        borderColor: '#39ff14',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: { display: false },
+    },
+    scales: {
+      y: { ticks: { color: '#888', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      x: { ticks: { color: '#888' }, grid: { display: false } },
+    }
+  };
 
   return (
-    <div className="p-8 space-y-8 max-w-[1400px] mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <motion.h2
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-4xl font-bold tracking-tight text-white mb-1"
-          >
-            Passive <span className="text-cyber-blue">Reconnaissance</span>
-          </motion.h2>
-          <p className="text-gray-500 text-sm font-medium">Network surface mapping: IP geo, DNS, SSL, subdomains, and WHOIS.</p>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <GlobalHeader 
+        title={headerTitle} 
+        subtitle={headerSubtitle} 
+        isMonochrome={isMonochrome} 
+        onToggleMonochrome={onToggleMonochrome} 
+      />
 
       {/* Target Input */}
       <CyberCard className="border-cyber-blue/20">
@@ -62,7 +99,7 @@ const ReconView = () => {
               className="w-full bg-cyber-black/50 border border-cyber-border rounded-xl py-4 pl-12 pr-4 focus:border-cyber-blue outline-none transition-all font-mono text-sm tracking-widest placeholder:text-gray-700 uppercase"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleDiscovery()}
+              onKeyDown={(e) => e.key === 'Enter' && handleDiscovery()}
             />
           </div>
           <button
@@ -81,14 +118,14 @@ const ReconView = () => {
         )}
       </CyberCard>
 
-      {!results && !isScanning && (
+      {!reconResults && !isScanning && (
         <div className="text-center py-20">
           <Globe className="mx-auto text-gray-700 mb-4" size={60} />
           <p className="text-gray-500 font-medium">Enter a target above to start reconnaissance.</p>
         </div>
       )}
 
-      {results && (
+      {reconResults && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* IP Intelligence & Network Range */}
@@ -117,14 +154,15 @@ const ReconView = () => {
                     <span className="text-[10px] font-black text-cyber-neon uppercase tracking-widest">Geolocation</span>
                   </div>
                   {[
+                    { label: 'Exact Address', value: geo.exact_address, icon: Target, isPrimary: true },
                     { label: 'City', value: geo.city },
                     { label: 'Country', value: geo.country },
                     { label: 'Coords', value: `${geo.lat}, ${geo.lon}` },
                     { label: 'ISP', value: geo.isp },
-                  ].filter(r => r.value).map(({ label, value }) => (
-                    <div key={label} className="flex justify-between items-start">
-                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">{label}</span>
-                      <span className="font-mono text-[10px] text-gray-300">{value}</span>
+                  ].filter(r => r.value).map(({ label, value, isPrimary }) => (
+                    <div key={label} className={`flex flex-col space-y-1 py-1 ${isPrimary ? 'pb-2 border-b border-white/5' : ''}`}>
+                      <span className={`text-[9px] font-bold uppercase tracking-widest ${isPrimary ? 'text-cyber-neon' : 'text-gray-500'}`}>{label}</span>
+                      <span className={`font-mono text-[10px] ${isPrimary ? 'text-white font-black leading-relaxed' : 'text-gray-300'}`}>{value}</span>
                     </div>
                   ))}
                   <button 
@@ -143,6 +181,7 @@ const ReconView = () => {
                 lon={geo.lon} 
                 city={geo.city} 
                 country={geo.country}
+                title={geo.exact_address}
               />
             </CyberCard>
 
@@ -207,17 +246,55 @@ const ReconView = () => {
             </CyberCard>
           </div>
 
-          {/* DNS */}
-          <div className="lg:col-span-4">
-            <CyberCard title="DNS Records" icon={Database}>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 text-[10px]">
-                {dnsRecords.map((record, i) => (
-                  <div key={i} className="p-2 bg-white/5 border border-white/5 rounded-lg flex flex-col">
-                    <span className="font-bold text-cyber-blue uppercase mb-1">{record.type}</span>
-                    <span className="font-mono text-gray-400 break-all">{record.value}</span>
-                  </div>
-                ))}
-                {dnsRecords.length === 0 && <p className="text-gray-600 text-xs">No DNS records found.</p>}
+          {/* DNS and Subdomains */}
+          <div className="lg:col-span-4 space-y-8">
+            {dnsRecords.length > 0 && (
+              <CyberCard title="DNS Record Distribution" icon={Database}>
+                <div className="mt-4 h-48">
+                  <Bar data={dnsChartData} options={chartOptions} />
+                </div>
+              </CyberCard>
+            )}
+            
+            <CyberCard title="DNS Records (Table)" icon={Database}>
+              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[9px] uppercase tracking-widest text-gray-500">
+                      <th className="py-2 px-3">Type</th>
+                      <th className="py-2 px-3">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[10px] font-mono text-gray-300">
+                    {dnsRecords.map((record, i) => (
+                      <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="py-2 px-3 text-cyber-blue font-bold">{record.type}</td>
+                        <td className="py-2 px-3 break-all">{record.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {dnsRecords.length === 0 && <p className="text-gray-600 text-xs py-4 text-center">No DNS records found.</p>}
+              </div>
+            </CyberCard>
+
+            <CyberCard title="Discovered Subdomains" icon={Globe}>
+              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[9px] uppercase tracking-widest text-gray-500">
+                      <th className="py-2 px-3">Subdomain</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[10px] font-mono text-gray-300">
+                    {subdomains.map((sub, i) => (
+                      <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="py-2 px-3 break-all">{sub}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {subdomains.length === 0 && <p className="text-gray-600 text-xs py-4 text-center">No subdomains resolved.</p>}
               </div>
             </CyberCard>
           </div>

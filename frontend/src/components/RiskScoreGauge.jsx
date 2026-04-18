@@ -1,58 +1,80 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+/* eslint-disable no-unused-vars */
 import React from 'react';
+import { Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const RiskScoreGauge = ({ score = 7.5 }) => {
+const RiskScoreGauge = ({ score = 8.0, monitored = 1, criticals = 1, integrity = 28 }) => {
   const percentage = (score / 10) * 100;
-  const strokeDasharray = 339.292; // 2 * PI * r (r=54)
-  const strokeDashoffset = strokeDasharray - (strokeDasharray * percentage) / 100;
+  // For a half-circle, we use strokeDasharray where half is the circumference.
+  // r = 70, circumference = 2 * PI * 70 = 439.8. Half = 219.9
+  const radius = 70;
+  const circumference = Math.PI * radius; 
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
   
   const getColor = (s) => {
     if (s >= 8) return '#ff003c'; // Alert Red
-    if (s >= 5) return '#ffcc00'; // Warning Yellow
+    if (s >= 5) return '#ffb800'; // Warning Yellow
     return '#39ff14'; // Neon Green
   };
 
   return (
-    <div className="relative flex items-center justify-center p-4">
-      <svg className="w-48 h-48 transform -rotate-90">
-        <circle
-          cx="96"
-          cy="96"
-          r="54"
-          fill="transparent"
-          stroke="#1a1a1b"
-          strokeWidth="12"
-        />
-        <motion.circle
-          initial={{ strokeDashoffset: strokeDasharray }}
-          animate={{ strokeDashoffset }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-          cx="96"
-          cy="96"
-          r="54"
-          fill="transparent"
-          stroke={getColor(score)}
-          strokeWidth="12"
-          strokeDasharray={strokeDasharray}
-          style={{ strokeLinecap: 'round' }}
-          className="filter drop-shadow-[0_0_8px_rgba(0,71,255,0.5)]"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <motion.span 
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-5xl font-bold font-mono tracking-tighter"
-        >
-          {score}
-        </motion.span>
-        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Risk Index</span>
+    <div className="flex flex-col items-center h-full">
+      <div className="flex items-center justify-between w-full mb-8">
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full bg-cyber-blue" />
+           <h4 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Security Posture</h4>
+        </div>
+        <Shield size={16} className="text-cyber-blue opacity-50" />
       </div>
-      
-      {/* Decorative inner rings */}
-      <div className="absolute w-32 h-32 border border-white/5 rounded-full pointer-events-none" />
-      <div className="absolute w-28 h-28 border border-white/5 rounded-full pointer-events-none animate-pulse-slow" />
+
+      <div className="relative flex items-center justify-center mb-8">
+        <svg className="w-64 h-32" viewBox="0 0 160 80">
+          <path
+            d="M 10 80 A 70 70 0 0 1 150 80"
+            fill="none"
+            stroke="#141416"
+            strokeWidth="12"
+            strokeLinecap="round"
+          />
+          <motion.path
+            d="M 10 80 A 70 70 0 0 1 150 80"
+            fill="none"
+            stroke={getColor(score)}
+            strokeWidth="12"
+            strokeLinecap="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: percentage / 100 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="filter drop-shadow-[0_0_10px_rgba(255,0,60,0.3)]"
+          />
+        </svg>
+        
+        <div className="absolute top-12 flex flex-col items-center justify-center">
+          <motion.span 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-4xl font-black font-mono tracking-tighter"
+          >
+            {score.toFixed(1)}
+          </motion.span>
+          <span className="text-[10px] text-cyber-alert font-black uppercase tracking-widest mt-1">Critical Risk</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 w-full border-t border-white/5 pt-6 mt-auto">
+        <div className="flex flex-col items-center border-r border-white/5">
+          <span className="text-lg font-black font-mono">{monitored}</span>
+          <span className="text-[8px] text-gray-600 uppercase font-black tracking-widest">Monitored</span>
+        </div>
+        <div className="flex flex-col items-center border-r border-white/5 text-cyber-alert">
+          <span className="text-lg font-black font-mono">{criticals}</span>
+          <span className="text-[8px] text-gray-600 uppercase font-black tracking-widest">Criticals</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-lg font-black font-mono">{integrity}%</span>
+          <span className="text-[8px] text-gray-600 uppercase font-black tracking-widest">Integrity</span>
+        </div>
+      </div>
     </div>
   );
 };

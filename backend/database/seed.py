@@ -9,35 +9,56 @@ def seed():
     db = SessionLocal()
 
     try:
-        # Admin User
-        admin = db.query(User).filter(User.username == 'admin').first()
-        if not admin:
-            print("[SEED] Creating admin user...")
-            admin = User(username="admin", email="admin@hexa.io", hashed_password=get_password_hash("admin123"), role="admin")
-            db.add(admin)
-        else:
-            print("[SEED] Admin user already exists, skipping creation.")
+        # Define target users
+        target_users = [
+            {"username": "admin", "email": "admin@hexa.io", "role": "admin", "pw": "admin123"},
+            {"username": "analyst", "email": "analyst@hexa.io", "role": "security_analyst", "pw": "analyst123"},
+            {"username": "student", "email": "student@hexa.io", "role": "student", "pw": "student123"}
+        ]
 
-        # Analyst User
-        analyst = db.query(User).filter(User.username == 'analyst').first()
-        if not analyst:
-            print("[SEED] Creating analyst user...")
-            analyst = User(username="analyst", email="analyst@hexa.io", hashed_password=get_password_hash("analyst123"), role="security_analyst")
-            db.add(analyst)
-        else:
-            print("[SEED] Analyst user already exists, skipping creation.")
+        for u_data in target_users:
+            # Check by username OR email (case-insensitive)
+            from sqlalchemy import func
+            existing = db.query(User).filter(
+                (func.lower(User.username) == func.lower(u_data["username"])) | 
+                (func.lower(User.email) == func.lower(u_data["email"]))
+            ).first()
 
-        # Student User
-        student = db.query(User).filter(User.username == 'student').first()
-        if not student:
-            print("[SEED] Creating student user...")
-            student = User(username="student", email="student@hexa.io", hashed_password=get_password_hash("student123"), role="student")
-            db.add(student)
-        else:
-            print("[SEED] Student user already exists, skipping creation.")
-
+            if not existing:
+                print(f"[SEED] Creating {u_data['username']} user...")
+                new_user = User(
+                    username=u_data["username"],
+                    email=u_data["email"],
+                    hashed_password=get_password_hash(u_data["pw"]),
+                    role=u_data["role"]
+                )
+                db.add(new_user)
+            else:
+                print(f"[SEED] User {u_data['username']} (or email {u_data['email']}) already exists. Updating credentials/role...")
+                existing.username = u_data["username"]
+                existing.role = u_data["role"]
+                existing.hashed_password = get_password_hash(u_data["pw"])
+        
         db.commit()
-        print("[SEED] Default users initialized/updated: admin/admin123, analyst/analyst123")
+        print("[SEED] Default users synchronized: admin/admin123, analyst/analyst123, student/student123")
+
+        # Seed Authorized Scopes
+        from models import AuthorizedScope
+        target_scopes = [
+            {"target": "127.0.0.1/32", "description": "Localhost - Internal Testing"},
+            {"target": "192.168.0.0/16", "description": "Private Network - Lab A"},
+            {"target": "10.0.0.0/8", "description": "Private Network - Lab B"},
+            {"target": "demo.hexa-shield.io", "description": "Authorized Demo Domain"}
+        ]
+        for s_data in target_scopes:
+            existing_scope = db.query(AuthorizedScope).filter(AuthorizedScope.target == s_data["target"]).first()
+            if not existing_scope:
+                print(f"[SEED] Creating authorized scope: {s_data['target']}...")
+                new_scope = AuthorizedScope(**s_data)
+                db.add(new_scope)
+        
+        db.commit()
+        print("[SEED] Authorized lab scopes synchronized.")
 
         # Check if scans exist
         scan_exists = db.query(Scan).first()

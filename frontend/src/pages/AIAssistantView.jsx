@@ -1,10 +1,11 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+ 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Terminal, Info } from 'lucide-react';
 import { aiService } from '../services/apiClient';
+import GlobalHeader from '../components/GlobalHeader';
 
 
-const AIAssistant = () => {
+const AIAssistant = ({ isMonochrome, onToggleMonochrome, headerTitle, headerSubtitle }) => {
   const [messages, setMessages] = useState([
     { 
       role: 'assistant', 
@@ -42,21 +43,33 @@ const AIAssistant = () => {
     }
   };
 
+  const [deepAnalysis, setDeepAnalysis] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const runDeepInterrogation = async () => {
+    setAnalyzing(true);
+    try {
+      // Fetch the most recent scan ID to analyze
+      const reportsRes = await aiService.chat("Summarize scan results", ""); // Just a dummy to trigger context if needed, but better to use a real ID
+      // For demo/sim, we use the last scan ID 1
+      const res = await aiService.runDeepAnalysis(1); 
+      setDeepAnalysis(res.data);
+    } catch (err) {
+      console.error("Deep analysis error", err);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
 
   return (
-    <div className="p-6 h-[calc(100vh-2rem)] flex flex-col animate-in fade-in duration-500">
-      <header className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold neon-text flex items-center gap-3">
-            <Sparkles className="text-cyber-blue" />
-            AI Security Assistant
-          </h2>
-          <p className="text-gray-400 mt-1">Intelligent threat analysis and remediation guidance.</p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-cyber-blue/10 border border-cyber-blue/30 rounded-full text-[10px] font-bold text-cyber-blue animate-pulse">
-            AI ENGINE ONLINE
-        </div>
-      </header>
+    <div className="flex flex-col h-full space-y-6">
+      <GlobalHeader 
+        title={headerTitle} 
+        subtitle={headerSubtitle} 
+        isMonochrome={isMonochrome} 
+        onToggleMonochrome={onToggleMonochrome} 
+      />
 
       <div className="flex-1 flex gap-6 overflow-hidden">
         {/* Chat Area */}
@@ -138,13 +151,44 @@ const AIAssistant = () => {
             </div>
           </div>
 
+          <div className="cyber-panel">
+            <h4 className="font-bold mb-4 flex items-center gap-2 text-cyber-blue text-sm">
+              <Sparkles size={16} />
+              Neural Deep Interrogation
+            </h4>
+            <button 
+              onClick={runDeepInterrogation}
+              disabled={analyzing}
+              className="w-full py-3 bg-cyber-blue text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-[0_0_20px_rgba(0,71,255,0.3)] disabled:opacity-50"
+            >
+              {analyzing ? 'Synthesizing...' : 'Run Advanced Interrogation'}
+            </button>
+            
+            {deepAnalysis && (
+              <div className="mt-6 space-y-4">
+                 <div className="p-3 bg-cyber-neon/10 border border-cyber-neon/20 rounded-lg">
+                    <span className="text-[10px] font-black text-cyber-neon uppercase tracking-widest block mb-1">Risk Posture</span>
+                    <span className="text-sm font-bold text-white">{deepAnalysis.analysis_metadata.risk_posture}</span>
+                 </div>
+                 <div className="space-y-2">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Detected Chains</span>
+                    {deepAnalysis.chained_attacks.map((chain, idx) => (
+                      <div key={idx} className="p-2 bg-red-500/10 border border-red-500/20 rounded text-[9px] text-red-100 font-bold">
+                        {chain.name}
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            )}
+          </div>
+
           <div className="cyber-panel bg-cyber-blue/5 border-cyber-blue/20">
             <h4 className="font-bold mb-2 flex items-center gap-2 text-cyber-blue text-sm">
               <Info size={16} />
               Context Awareness
             </h4>
             <p className="text-[10px] text-gray-500 leading-normal">
-              The AI is currently processing the latest scan results for <strong>hexa-shield.io</strong>. All suggestions are tailored to your specific infrastructure findings.
+              The AI is currently processing the latest scan results. All suggestions are tailored to your specific infrastructure findings.
             </p>
           </div>
         </div>

@@ -1,6 +1,17 @@
 version: '3.8'
 
-services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_DB=hexa_db
+      - POSTGRES_USER=hexa_user
+      - POSTGRES_PASSWORD=hexa_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     ports:
@@ -8,8 +19,11 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=sqlite:///./hexa.db
+      - DATABASE_URL=postgresql://hexa_user:hexa_password@db:5432/hexa_db
       - SECRET_KEY=your_secret_key_here
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -17,3 +31,6 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  postgres_data:

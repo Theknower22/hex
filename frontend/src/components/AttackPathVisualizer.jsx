@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-unused-vars, react-refresh/only-export-components */
+﻿/* eslint-disable no-unused-vars */
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Server, Shield, Globe, Terminal, Activity } from 'lucide-react';

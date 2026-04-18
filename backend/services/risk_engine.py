@@ -4,17 +4,49 @@ from typing import List, Dict
 
 class RiskEngine:
     @staticmethod
+    def calculate_custom_risk(finding: Dict) -> float:
+        """Calculate the specific risk of a single vulnerability using:
+           Risk Score = CVSS + Exposure + Asset Value
+           For dashboard normalization (0-10 scale), we avg the three 0-10 components.
+        """
+        raw_cvss = finding.get("cvss_score") or finding.get("cvss") or 5.0
+        cvss = float(raw_cvss)
+        
+        # Heuristics for Exposure (0-10): Critical web flaws are highly exposed.
+        severity = finding.get("severity", "Medium")
+        exposure = 9.0 if severity == "Critical" else (7.0 if severity == "High" else 5.0)
+        
+        # Heuristics for Asset Value (0-10): All scanned endpoints assumed high value in SOC context.
+        asset_value = 8.0 
+        
+        # Formula: sum the values and divide by 3 to maintain the standard 0-10 gauge scale.
+        raw_score = (cvss + exposure + asset_value) / 3.0
+        return float("{:.1f}".format(raw_score))
+
+    @staticmethod
     def calculate_overall_risk(findings: List[Dict]) -> float:
-        """Calculate the overall risk score based on findings."""
+        """Calculate the overall system risk score based on ranked findings."""
         if not findings:
             return 0.0
 
-        total_cvss = sum(f.get("cvss_score", 0.0) for f in findings)
-        # Simple normalization: max score is 10
-        score = 2 * math.log(total_cvss + 1, 2)
-        # Using format to avoid 'ndigits: None' lint error while rounding
-        rounded_score = float("{:.1f}".format(score))
-        return min(rounded_score, 10.0)
+        scores = [RiskEngine.calculate_custom_risk(f) for f in findings]
+        
+        # The overall system risk is determined by its weakest links (Top 3 highest scores)
+        scores.sort(reverse=True)
+        top_scores = scores[:3]
+        
+        # Average the top scores to give a representative global risk
+        global_score = sum(top_scores) / len(top_scores)
+        return min(float("{:.1f}".format(global_score)), 10.0)
+
+    @staticmethod
+    def rank_vulnerabilities(findings: List[Dict]) -> List[Dict]:
+        """Rank and return vulnerabilities sorted by their custom Risk Score."""
+        for f in findings:
+            f['custom_risk_score'] = RiskEngine.calculate_custom_risk(f)
+            
+        ranked = sorted(findings, key=lambda x: x['custom_risk_score'], reverse=True)
+        return ranked
 
     @staticmethod
     def get_risk_level(score: float) -> str:
@@ -43,26 +75,26 @@ class RiskEngine:
         """Generate a virtual network layout for a given target."""
         return {
             "nodes": [
-                {"id": 1, "label": f"External ({target})", "type": "entry", "x": 50, "y": 150, "color": "#3b82f6"},
-                {"id": 2, "label": "Security GW", "type": "gateway", "x": 180, "y": 150, "color": "#10b981"},
-                {"id": 3, "label": "Web Cluster", "type": "server", "x": 320, "y": 80, "color": "#f59e0b"},
-                {"id": 4, "label": "App API", "type": "server", "x": 320, "y": 220, "color": "#f59e0b"},
-                {"id": 5, "label": "Data Core", "type": "database", "x": 500, "y": 150, "color": "#ef4444"},
+                {"id": 1, "label": f"External ({target})", "type": "entry", "x": 50, "y": 150, "color": "#3b82f6", "val": 20},
+                {"id": 2, "label": "Security GW", "type": "gateway", "x": 180, "y": 150, "color": "#10b981", "val": 15},
+                {"id": 3, "label": "Web Cluster", "type": "server", "x": 320, "y": 80, "color": "#f59e0b", "val": 18},
+                {"id": 4, "label": "App API", "type": "server", "x": 320, "y": 220, "color": "#f59e0b", "val": 18},
+                {"id": 5, "label": "Data Core", "type": "database", "x": 500, "y": 150, "color": "#ef4444", "val": 25},
             ],
             "links": [
-                {"from": 1, "to": 2},
-                {"from": 2, "to": 3},
-                {"from": 2, "to": 4},
-                {"from": 3, "to": 5},
-                {"from": 4, "to": 5},
+                {"source": 1, "target": 2},
+                {"source": 2, "target": 3},
+                {"source": 2, "target": 4},
+                {"source": 3, "target": 5},
+                {"source": 4, "target": 5},
             ]
         }
 
     @staticmethod
     def get_heatmap_data(findings: List[Dict]) -> List[List[int]]:
         """Generate a 4x6 grid of risk levels (0-10) based on findings."""
-        # Divide finding count by segment
-        base_grid = [[1, 1, 1, 1, 1, 1] for _ in range(4)]
+        # Initialize a 4x6 grid of zeros.
+        base_grid = [[0, 0, 0, 0, 0, 0] for _ in range(4)]
         
         # Categorize findings into grid regions
         for f in findings:
